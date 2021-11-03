@@ -38,7 +38,7 @@ class RIC_DB():
         if Channel not in (0,1,2):
             raise ValueError('Channel should be 0 for X, 1 for Y and 2 for Z')
 
-        query = f"SELECT Width, Height, ImageData FROM ImageData WHERE MeasurementID={MeasurementID} AND DataType={1}"
+        query = f"SELECT Width, Height, ImageData FROM ImageData WHERE MeasurementID={MeasurementID} AND DataType={Channel}"
 
         #query = f"SELECT Width, Height, ImageData FROM ImageData WHERE MeasurementID == {MeasurementID}"#" AND DataType = {Channel}"
                              
@@ -54,7 +54,8 @@ class RIC_DB():
 
     def read_luminance(self, MeasurementID):
     
-        return self.read_single_channel(MeasurementID)
+        # 2nd channel is obsolute luminance
+        return self.read_single_channel(MeasurementID, Channel=1)
         
 
     def get_number_of_measurements(self):
@@ -97,7 +98,9 @@ class RIC_DB():
                 """
         
         self.cursorObject.execute(query)
-        return dict(self.cursorObject.fetchall())
+        return self.cursorObject.fetchall()
+
+
 
 
 
