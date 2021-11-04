@@ -28,11 +28,14 @@ suffixex = ["50mA"]
 def do(database_path, Rows=6, Cols=9, Bin = 8):
     
     fig_height = 10
+    
+    fig_cols = 10
+    fig_rows = 4
 
     
-    fig, axs = plt.subplots(4, 8)
+    fig, axs = plt.subplots(fig_rows, fig_cols)
     fig.set_figheight(fig_height)
-    fig.set_figwidth(fig_height * 2 * 1.5)
+    fig.set_figwidth(fig_height * fig_cols/fig_rows * 1.5)
     
     save_file = database_path.split('.')[0] + "/"
     if not os.path.exists(save_file):
@@ -51,6 +54,8 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     print('Image database name: ', database_path)
     print('Measurements in this DB:')
     print(measurements_in_db)
+    
+    stats = {}
     
     
     PD_for_sequential = [0, 0]
@@ -90,15 +95,23 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     PD_for_sequential[1] = get_means(image, px, py, Rows, Cols) 
                     contrast_array_minus = get_local(image, Rows, Cols,  px, py, axs[i, 1])
                     
-                    
-                    
+
                     contrast_combined = np.nan_to_num(contrast_array_plus, False) + \
                     np.nan_to_num(contrast_array_minus, False) 
+                    
+                    stats['checkerboard local'] = {'min' : np.min(contrast_combined),
+                                                   'max' : np.max(contrast_combined),
+                                                   'avg' : np.mean(contrast_combined),
+                                                   'SD' : np.std(contrast_combined),
+                                                   }
+                                        
 
                     ax = axs[i, 2]
                     ax.imshow(contrast_combined)
                     contour = ax.imshow(contrast_combined)
                     plt.colorbar(contour, ax=ax)
+                    
+                    ax.set_xlabel(f"""min: {stats['checkerboard local']['min']:.1f} max: {stats['checkerboard local']['max']:.1f} avg: {stats['checkerboard local']['avg']:.1f} SD {stats['checkerboard local']['SD']:.1f}""")
                     
                     
                     current_file = save_file+measurement+"_local.csv"
@@ -109,12 +122,19 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     seq_check_contrast[mask] = 1/seq_check_contrast[mask]
                     
                     seq_check_contrast = seq_check_contrast.reshape((Rows, Cols))
+                    
+                    stats['checkerboard seq'] = {'min' : np.min(seq_check_contrast),
+                               'max' : np.max(seq_check_contrast),
+                               'avg' : np.mean(seq_check_contrast),
+                               'SD' : np.std(seq_check_contrast),
+                               }
 
                     ax = axs[i, 3]                    
                     ax.imshow(seq_check_contrast)
                     contour = ax.imshow(seq_check_contrast)
                     plt.colorbar(contour, ax=ax)                   
-                    
+                    ax.set_xlabel(f"""min: {stats['checkerboard seq']['min']:.1f} max: {stats['checkerboard seq']['max']:.1f} avg: {stats['checkerboard seq']['avg']:.1f} SD {stats['checkerboard seq']['SD']:.1f}""")
+                   
                     
                     current_file = save_file+measurement+"_sequential.csv"            
                     np.savetxt(current_file, seq_check_contrast, delimiter=',')
@@ -124,7 +144,21 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     
                 elif 'white' in measurement:
-                    contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,5])
+                    contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,6])
+                    
+                    stats['white local'] = {'min' : np.min(contrast_array),
+                                                'max' : np.max(contrast_array),
+                                                'avg' : np.mean(contrast_array),
+                                                'SD' : np.std(contrast_array),
+                                                }
+
+                    
+                    ax = axs[i, 7]
+                    ax.imshow(contrast_combined)
+                    contour = ax.imshow(contrast_array)
+                    plt.colorbar(contour, ax=ax)
+                    ax.set_xlabel(f"""min: {stats['white local']['min']:.1f} max: {stats['white local']['max']:.1f} avg: {stats['white local']['avg']:.1f} SD {stats['white local']['SD']:.1f}""")
+                   
                     
                     current_file = save_file+measurement+"_local.csv"
                     np.savetxt(current_file, contrast_array, delimiter=',')
@@ -149,6 +183,8 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     white_av = image[y_min:y_max,x_min:x_max].mean()
                     
+
+                    
                     ax = axs[i, 4]
                     contour = ax.imshow(image, cmap='gray')
                     ax.plot([x_min, x_min, x_max, x_max, x_min], [y_min,y_max,y_max,y_min, y_min], color = 'r')
@@ -157,7 +193,20 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     
                 elif 'black' in measurement:
-                    contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,7])
+                    contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,8])
+                    
+                    stats['black local'] = {'min' : np.min(contrast_array),
+                                                'max' : np.max(contrast_array),
+                                                'avg' : np.mean(contrast_array),
+                                                'SD' : np.std(contrast_array),
+                                                }   
+                    
+                    ax = axs[i, 9]
+                    ax.imshow(contrast_combined)
+                    contour = ax.imshow(contrast_array)
+                    plt.colorbar(contour, ax=ax)                    
+                    ax.set_xlabel(f"""min: {stats['black local']['min']:.1f} max: {stats['black local']['max']:.1f} avg: {stats['black local']['avg']:.1f} SD {stats['black local']['SD']:.1f}""")
+                    
                     
                     current_file = save_file+measurement+"_local.csv"
                     np.savetxt(current_file, contrast_array, delimiter=',')
@@ -166,21 +215,48 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     sequential_contrast = white_av/black_av
                     
-                    current_file = save_file+measurement+"_sequential.csv"
+                    stats['white seq'] = {'avg' : sequential_contrast}
+                    
+
+                    
+                    current_file = save_file+measurement+"_stats.txt"
                     
                     with open(current_file, 'w') as f:
-                        f.write(str(sequential_contrast))
+                        for key in stats:
+                            f.write(key)
+                            f.write('\n')
+                            for key2, value2 in stats[key].items():
+                                f.write(key2 + '\t' + str(value2) + '\n')
                         
-                    ax = axs[i, 6]
+                    ax = axs[i, 5]
                     contour = ax.imshow(image, cmap='gray')
                     ax.plot([x_min, x_min, x_max, x_max, x_min], [y_min,y_max,y_max,y_min, y_min], color = 'r')
                     plt.colorbar(contour, ax=ax)   
-                
+                    ax.set_xlabel(f'Seq contrast {sequential_contrast:.2f}')
                 
                 else:
                     print (f"{measurement} not processed")
 
     # serial_no = os.path.splitext( os.path.split(database_path)[-1] )[0]
+    axs[0,0].set_ylabel('R')
+    axs[1,0].set_ylabel('G')    
+    axs[2,0].set_ylabel('B')
+    axs[3,0].set_ylabel('W')
+    
+    axs[0,0].set_title('+Check Raw')
+    axs[0,1].set_title('-Check Raw')
+    axs[0,2].set_title('Check Local')
+    axs[0,3].set_title('Check Seq')
+    axs[0,4].set_title('White Raw Seq')
+    axs[0,5].set_title('Black Raw Seq')
+    axs[0,6].set_title('White Raw Local')
+    axs[0,7].set_title('White Local')
+    axs[0,8].set_title('Black Raw Local')
+    axs[0,9].set_title('Black Local')
+    
+
+    
+    plt.tight_layout()
     plt.savefig(save_file+'plot.png', dpi=300, bbox_inches='tight')
     plt.show()
 
