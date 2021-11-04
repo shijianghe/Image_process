@@ -73,7 +73,13 @@ class RIC_DB():
                 MeasurementID = {index}"""
                 
         self.cursorObject.execute(query)
-        return self.cursorObject.fetchone()[0]
+        
+        try:
+            desc = self.cursorObject.fetchone()[0]
+        except:
+            raise IndexError(f"Index {index} not found in DB")
+            
+        return desc
 
         
     def index_by_desc(self, desc):
@@ -84,7 +90,11 @@ class RIC_DB():
                 MeasurementDesc = '{desc}'
                 """
         self.cursorObject.execute(query)
-        return self.cursorObject.fetchone()[0]
+        try:
+            index = self.cursorObject.fetchone()[0]
+        except:
+            raise IndexError(f"{desc} not found in DB")
+        return index
 
     def get_meas_list(self):
         """
@@ -111,19 +121,18 @@ if __name__ == "__main__":
     meas = "Ghost_white_50mA"
     
     
+    db = RIC_DB(file)
     
-    cursorObject = connect_database(file)
-    
-    meas_dict = get_meas_list(cursorObject)
+    meas_dict = db.get_meas_list()
     print("measurements in the database:\n")
-    for key,value in meas_dict.items():
+    for key,value in meas_dict:
         print(key, ':', value)
     
-    index = index_by_desc(cursorObject, meas)
+    index = db.index_by_desc(meas)
     
     print(f"\nindex for selected measurement is {index}")
     
-    image = read_luminance(cursorObject, index)
+    image = db.read_luminance(index)
     
     from matplotlib import pyplot as plt
     
