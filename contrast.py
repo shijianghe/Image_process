@@ -41,6 +41,9 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     fig.set_figwidth(fig_height * len(fig_cols)/len(fig_rows) * 1.5)
     
     save_file = database_path.split('.')[0] + "/"
+    
+    DMA_name = save_file.split('/')[-2]
+    
     if not os.path.exists(save_file):
         os.makedirs(save_file)
     
@@ -333,9 +336,9 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
 #    axs[0,10].set_title('Black Local')
     
 
-    
+    fig.suptitle(DMA_name, size=16)
     plt.tight_layout()
-    plt.savefig(save_file+'plot.png', dpi=300, bbox_inches='tight')
+    plt.savefig(save_file+f'plot_{DMA_name}.png', dpi=300, bbox_inches='tight')
     plt.show()
     print("Done!\n")
 
