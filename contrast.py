@@ -337,6 +337,7 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     plt.tight_layout()
     plt.savefig(save_file+'plot.png', dpi=300, bbox_inches='tight')
     plt.show()
+    print("Done!\n")
 
 def get_vertices(image, Rows, Cols):
     rows = Rows-1; ROWS=Rows+1
@@ -753,7 +754,19 @@ if __name__=='__main__':
         do(sys.argv[1], sys.argv[2], sys.argv[3])
 
     elif len(sys.argv)==2:
-        do(sys.argv[1])
+        path = sys.argv[1]
+        
+        if path[-1] != '/':
+            path = path+'/'
+            
+        
+        files = os.listdir(path)
+        
+        for file in files:
+            if file.endswith("pmxm"):
+                do(path + file)
+        
+        print("All files processed!")
 
     else:
         print('Please input the image file name')
