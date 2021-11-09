@@ -4,14 +4,14 @@ Author: Shijiang He, shih@microsoft.com
 
 
 '''
+#TODO local seq contrast for black/white
 
-
-import cv2
-from PIL import Image 
+#import cv2
+#from PIL import Image 
 
 import numpy as np
 
-import itertools, math, os
+#import itertools, math, os
 import matplotlib.pyplot as plt
 
 from checkerboard import detect_checkerboard 
@@ -29,13 +29,16 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     
     fig_height = 10
     
-    fig_cols = 10
-    fig_rows = 4
+    fig_cols = ['+Check Raw', '-Check Raw', 'Check Local', 'Check Seq', 
+                'White Uniformity', 'Black Uniformity', 'W/B Seq']#, 'White Raw Local',
+#                'White Local','Black Raw Local', 'Black Local']
+
+    fig_rows = ['R','G','B','W']
 
     
-    fig, axs = plt.subplots(fig_rows, fig_cols)
+    fig, axs = plt.subplots(len(fig_rows), len(fig_cols))
     fig.set_figheight(fig_height)
-    fig.set_figwidth(fig_height * fig_cols/fig_rows * 1.5)
+    fig.set_figwidth(fig_height * len(fig_cols)/len(fig_rows) * 1.5)
     
     save_file = database_path.split('.')[0] + "/"
     if not os.path.exists(save_file):
@@ -57,8 +60,11 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     
     stats = {}
     
+    px = py = 0
     
     PD_for_sequential = [0, 0]
+    
+    
     
     for k, suffix in enumerate(suffixex):
         for i, channel in enumerate(channels):
@@ -66,7 +72,7 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 
                 
                 measurement = f"{channel}_{mode}_{suffix}"
-
+                print(f"\nProcessing measurement {measurement}\n")
         
                 try:
                     MeasurementID = db.index_by_desc(measurement)
@@ -80,20 +86,26 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 
                 if '+chkbrd' in measurement:
                     
-                    
-                    px, py = get_vertices(image, Rows, Cols)
-                    PD_for_sequential[0] = get_means(image, px, py, Rows, Cols) 
-                    contrast_array_plus = get_local(image, Rows, Cols,  px, py, axs[i, 0])
+                    try:
+                        px, py = get_vertices(image, Rows, Cols)
+                        PD_for_sequential[0] = get_means(image, px, py, Rows, Cols) 
+                        contrast_array_plus = get_local(image, Rows, Cols,  px, py, axs[i, 0])
+                    except:
+                        print(f"Error processing {measurement}!\n")
+                        continue
 
                     
                     
                     
                 elif '-chkbrd' in measurement:
                     
-                    
-                    px, py = get_vertices(image, Rows, Cols)
-                    PD_for_sequential[1] = get_means(image, px, py, Rows, Cols) 
-                    contrast_array_minus = get_local(image, Rows, Cols,  px, py, axs[i, 1])
+                    try:
+                        px, py = get_vertices(image, Rows, Cols)
+                        PD_for_sequential[1] = get_means(image, px, py, Rows, Cols) 
+                        contrast_array_minus = get_local(image, Rows, Cols,  px, py, axs[i, 1])
+                    except:
+                        print(f"Error processing {measurement}!\n")
+                        continue
                     
 
                     contrast_combined = np.nan_to_num(contrast_array_plus, False) + \
@@ -144,25 +156,27 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     
                 elif 'white' in measurement:
-                    contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,6])
-                    
-                    stats['white local'] = {'min' : np.min(contrast_array),
-                                                'max' : np.max(contrast_array),
-                                                'avg' : np.mean(contrast_array),
-                                                'SD' : np.std(contrast_array),
-                                                }
-
-                    
-                    ax = axs[i, 7]
-                    ax.imshow(contrast_combined)
-                    contour = ax.imshow(contrast_array)
-                    plt.colorbar(contour, ax=ax)
-                    ax.set_xlabel(f"""min: {stats['white local']['min']:.1f} max: {stats['white local']['max']:.1f} avg: {stats['white local']['avg']:.1f} SD {stats['white local']['SD']:.1f}""")
-                   
-                    
-                    current_file = save_file+measurement+"_local.csv"
-                    np.savetxt(current_file, contrast_array, delimiter=',')
-                       
+# =============================================================================
+#                     contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,7])
+#                     
+#                     stats['white local'] = {'min' : np.min(contrast_array),
+#                                                 'max' : np.max(contrast_array),
+#                                                 'avg' : np.mean(contrast_array),
+#                                                 'SD' : np.std(contrast_array),
+#                                                 }
+# 
+#                     
+#                     ax = axs[i, 8]
+#                     ax.imshow(contrast_combined)
+#                     contour = ax.imshow(contrast_array)
+#                     plt.colorbar(contour, ax=ax)
+#                     ax.set_xlabel(f"""min: {stats['white local']['min']:.1f} max: {stats['white local']['max']:.1f} avg: {stats['white local']['avg']:.1f} SD {stats['white local']['SD']:.1f}""")
+#                    
+#                    
+#                     current_file = save_file+measurement+"_local.csv"
+#                     np.savetxt(current_file, contrast_array, delimiter=',')
+#                        
+# =============================================================================
                     coord = np.where (image>image.mean())
                     
                     y_min = np.min(coord[0])
@@ -170,54 +184,126 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     x_min = np.min(coord[1])
                     x_max = np.max(coord[1])
                     
-                    mid_x = int((x_min+x_max)/2)
-                    mid_y = int (((y_min+y_max)/2))
+                    white_img = image[y_min:y_max,x_min:x_max]
                     
-                    coord_y = np.where (image[:, mid_x]>image.mean())
-                    y_min = np.min(coord_y[0])+1
-                    y_max = np.max(coord_y[0])-1
+                    coord_y = np.where (white_img[:, white_img.shape[1]//2]>image.mean())
+                    y_min_rect = np.min(coord_y[0])+1
+                    y_max_rect = np.max(coord_y[0])-1
                     
-                    coord_x = np.where (image[mid_y, :]>image.mean())
-                    x_min = np.min(coord_x[0])+1
-                    x_max = np.max(coord_x[0])-1
+                    coord_x = np.where (white_img[white_img.shape[0]//2, :]>image.mean())
+                    x_min_rect = np.min(coord_x[0])+1
+                    x_max_rect = np.max(coord_x[0])-1
                     
-                    white_av = image[y_min:y_max,x_min:x_max].mean()
                     
-
+                    white_center = white_img[y_min_rect:y_max_rect,x_min_rect:x_max_rect]
+                    white_av = white_center.mean()
+                    
+                    white_uniformity = white_img/np.max(white_img) * 100
+                    
+                    white_uniformity_area = white_uniformity[y_min_rect:y_max_rect,x_min_rect:x_max_rect]
+                    
+                    stats['white uniformity'] = {'min' : np.min(white_uniformity_area),
+                             'max' : np.max(white_uniformity_area),
+                             'avg' : np.mean(white_uniformity_area),
+                             'SD' : np.std(white_uniformity_area),
+                             }
+                    
+                    
                     
                     ax = axs[i, 4]
-                    contour = ax.imshow(image, cmap='gray')
-                    ax.plot([x_min, x_min, x_max, x_max, x_min], [y_min,y_max,y_max,y_min, y_min], color = 'r')
+                    contour = ax.imshow(white_uniformity)
+                    ax.plot([x_min_rect, x_min_rect, x_max_rect, x_max_rect, x_min_rect], 
+                            [y_min_rect,y_max_rect,y_max_rect,y_min_rect, y_min_rect], 
+                            color = 'r', linewidth=0.5)
+                    
+                    ax.set_xlabel(f"""min: {stats['white uniformity']['min']:.1f} max: {stats['white uniformity']['max']:.1f} avg: {stats['white uniformity']['avg']:.1f} SD {stats['white uniformity']['SD']:.1f}""")
+ 
+                    
                     plt.colorbar(contour, ax=ax)   
+                    
+                    current_file = save_file+measurement+"_unoiformity.csv"
+                    np.savetxt(current_file, white_uniformity_area, delimiter=',')                    
+
                     
                     
                     
                 elif 'black' in measurement:
-                    contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,8])
+# =============================================================================
+#                     contrast_array = get_local_from_uniform(image, Rows, Cols,  px, py, axs[i,9])
+#                     
+#                     stats['black local'] = {'min' : np.min(contrast_array),
+#                                                 'max' : np.max(contrast_array),
+#                                                 'avg' : np.mean(contrast_array),
+#                                                 'SD' : np.std(contrast_array),
+#                                                 }   
+#                     
+#                     ax = axs[i, 10]
+#                     ax.imshow(contrast_combined)
+#                     contour = ax.imshow(contrast_array)
+#                     plt.colorbar(contour, ax=ax)                    
+#                     ax.set_xlabel(f"""min: {stats['black local']['min']:.1f} max: {stats['black local']['max']:.1f} avg: {stats['black local']['avg']:.1f} SD {stats['black local']['SD']:.1f}""")
+#                     
+#                     
+#                     current_file = save_file+measurement+"_local.csv"
+#                     np.savetxt(current_file, contrast_array, delimiter=',')
+#                     
+# =============================================================================
+
+
+
+                    black_img = image[y_min:y_max,x_min:x_max]
                     
-                    stats['black local'] = {'min' : np.min(contrast_array),
-                                                'max' : np.max(contrast_array),
-                                                'avg' : np.mean(contrast_array),
-                                                'SD' : np.std(contrast_array),
-                                                }   
-                    
-                    ax = axs[i, 9]
-                    ax.imshow(contrast_combined)
-                    contour = ax.imshow(contrast_array)
-                    plt.colorbar(contour, ax=ax)                    
-                    ax.set_xlabel(f"""min: {stats['black local']['min']:.1f} max: {stats['black local']['max']:.1f} avg: {stats['black local']['avg']:.1f} SD {stats['black local']['SD']:.1f}""")
+                    black_center = black_img[y_min_rect:y_max_rect,x_min_rect:x_max_rect]
+
+                    black_av = black_center.mean()
                     
                     
-                    current_file = save_file+measurement+"_local.csv"
-                    np.savetxt(current_file, contrast_array, delimiter=',')
+                    black_uniformity = black_img/np.max(black_img) * 100
                     
-                    black_av = image[y_min:y_max,x_min:x_max].mean()
+                    black_uniformity_area = black_uniformity[y_min_rect:y_max_rect,x_min_rect:x_max_rect]
+                    
+                    stats['black uniformity'] = {'min' : np.min(black_uniformity_area),
+                    		 'max' : np.max(black_uniformity_area),
+                    		 'avg' : np.mean(black_uniformity_area),
+                    		 'SD' : np.std(black_uniformity_area),
+                    		 }
+           
+                 
+
+                        
+                    ax = axs[i, 5]
+                    contour = ax.imshow(black_uniformity)
+                    
+                    ax.plot([x_min_rect, x_min_rect, x_max_rect, x_max_rect, x_min_rect], 
+                    		[y_min_rect,y_max_rect,y_max_rect,y_min_rect, y_min_rect], 
+                    		color = 'r', linewidth=0.5)
+                    
+                    plt.colorbar(contour, ax=ax)   
+                    ax.set_xlabel(f"""min: {stats['black uniformity']['min']:.1f} max: {stats['black uniformity']['max']:.1f} avg: {stats['black uniformity']['avg']:.1f} SD {stats['black uniformity']['SD']:.1f}""")
+                    
+                    
                     
                     sequential_contrast = white_av/black_av
                     
-                    stats['white seq'] = {'avg' : sequential_contrast}
+                    sequential_contrast_map = white_center/black_center
                     
+                    
+                    stats['B/W seq'] = {'min' : np.min(sequential_contrast_map),
+                             'max' : np.max(sequential_contrast_map),
+                             'avg' : np.mean(sequential_contrast_map),
+                             'SD' : np.std(sequential_contrast_map),
+                             }   
 
+                    
+                    stats['sequential average'] = {'avg' : sequential_contrast}
+                    
+                                       
+                    ax = axs[i, 6]
+                    contour = ax.imshow(sequential_contrast_map)
+                    plt.colorbar(contour, ax=ax)   
+                    ax.set_xlabel(f"""min: {stats['B/W seq']['min']:.1f} max: {stats['B/W seq']['max']:.1f} avg: {stats['B/W seq']['avg']:.1f} SD {stats['B/W seq']['SD']:.1f}""")
+                    
+                    
                     
                     current_file = save_file+measurement+"_stats.txt"
                     
@@ -227,15 +313,9 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                             f.write('\n')
                             for key2, value2 in stats[key].items():
                                 f.write(key2 + '\t' + str(value2) + '\n')
-                        
-                    ax = axs[i, 5]
-                    contour = ax.imshow(image, cmap='gray')
-                    ax.plot([x_min, x_min, x_max, x_max, x_min], [y_min,y_max,y_max,y_min, y_min], color = 'r')
-                    plt.colorbar(contour, ax=ax)   
-                    ax.set_xlabel(f'Seq contrast {sequential_contrast:.2f}')
                 
                 else:
-                    print (f"{measurement} not processed")
+                    print (f"{measurement} not processed\n")
 
     # serial_no = os.path.splitext( os.path.split(database_path)[-1] )[0]
     axs[0,0].set_ylabel('R')
@@ -243,16 +323,14 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     axs[2,0].set_ylabel('B')
     axs[3,0].set_ylabel('W')
     
-    axs[0,0].set_title('+Check Raw')
-    axs[0,1].set_title('-Check Raw')
-    axs[0,2].set_title('Check Local')
-    axs[0,3].set_title('Check Seq')
-    axs[0,4].set_title('White Raw Seq')
-    axs[0,5].set_title('Black Raw Seq')
-    axs[0,6].set_title('White Raw Local')
-    axs[0,7].set_title('White Local')
-    axs[0,8].set_title('Black Raw Local')
-    axs[0,9].set_title('Black Local')
+    
+    for i, title in enumerate(fig_cols):
+        axs[0,i].set_title(title)
+
+#    axs[0,7].set_title('White Raw Local')
+#    axs[0,8].set_title('White Local')
+#    axs[0,9].set_title('Black Raw Local')
+#    axs[0,10].set_title('Black Local')
     
 
     
@@ -312,7 +390,7 @@ def get_vertices(image, Rows, Cols):
     x2,y2=X[1:-1, 0], Y[1:-1, 0]
     x4,y4=X[1:-1,-1], Y[1:-1,-1]
     
-    print(x3,y3,x4,y4)
+    #print(x3,y3,x4,y4)
     
     f1=np.polyfit(x1,y1,2); 
     f2=np.polyfit(y2,x2,2)
@@ -344,13 +422,8 @@ def bin_image(image, Bin):
     h,w = image.shape 
     image = image[:h//Bin*Bin, :w//Bin*Bin].reshape(h//Bin, Bin, w//Bin, Bin).mean(-1).mean(1)  
     return image
-
-
-
-
     
-    
-
+"""
 def get_contrast(db, Rows, Cols, MeasurementID, Bin=8):
 
     coverage = 0.25
@@ -513,6 +586,7 @@ def get_contrast(db, Rows, Cols, MeasurementID, Bin=8):
     # ax4.set_xlabel(f'Position (pixel), SN={serial_no}')
     # ax4.set_ylabel( 'Vertical cross talk (%)')
     # ax4.legend( prop={'family':'monospace', 'size': 8}) 
+"""
 
 def get_means(image, px, py, Rows, Cols, coverage = 0.25):
     Squares=[]
@@ -523,7 +597,7 @@ def get_means(image, px, py, Rows, Cols, coverage = 0.25):
     del_x = int(pitch_x*(1-np.sqrt(coverage))/2)
     del_y = int(pitch_y*(1-np.sqrt(coverage))/2)
     
-    print('pitch:', pitch_x, pitch_y, del_x, del_y)
+    #print('pitch:', pitch_x, pitch_y, del_x, del_y)
 
     for i in range(Rows):
         squares=[]
@@ -657,7 +731,7 @@ def get_local(image, Rows, Cols, px, py, ax, coverage = 0.25):
     
 
 
-
+"""
 def find_image_rect():
 
 
@@ -665,6 +739,7 @@ def find_image_rect():
     imgray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     ret, thresh = cv2.threshold(imgray, 127, 255, 0)
     im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+"""
 
 import sys
 if __name__=='__main__':
