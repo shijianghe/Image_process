@@ -4,7 +4,8 @@ Author: Shijiang He, shih@microsoft.com
 
 
 '''
-#TODO local seq contrast for black/white
+#TODO ANSI uniformity
+#TODO normalize by center not by max
 
 #import cv2
 #from PIL import Image 
@@ -133,6 +134,15 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     np.savetxt(current_file, contrast_combined, delimiter=',')
                     
                     seq_check_contrast = PD_for_sequential[1]/PD_for_sequential[0]
+                    
+                    PD_whites = PD_whites = np.concatenate(\
+                        (PD_for_sequential[0][::2], PD_for_sequential[1][1::2]))
+                    
+                    PD_blacks = np.concatenate(\
+                        (PD_for_sequential[0][1::2], PD_for_sequential[1][::2]))
+                     
+                    seq_check_avg2 = np.mean(PD_whites)/np.mean(PD_blacks)
+                     
                     mask = np.where(seq_check_contrast < 1)[0]
                     seq_check_contrast[mask] = 1/seq_check_contrast[mask]
                     
@@ -142,13 +152,15 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                                'max' : np.max(seq_check_contrast),
                                'avg' : np.mean(seq_check_contrast),
                                'SD' : np.std(seq_check_contrast),
+                               'avg2' : seq_check_avg2
                                }
+                    
 
                     ax = axs[i, 3]                    
                     ax.imshow(seq_check_contrast)
                     contour = ax.imshow(seq_check_contrast)
                     plt.colorbar(contour, ax=ax)                   
-                    ax.set_xlabel(f"""min: {stats['checkerboard seq']['min']:.1f} max: {stats['checkerboard seq']['max']:.1f} avg: {stats['checkerboard seq']['avg']:.1f} SD {stats['checkerboard seq']['SD']:.1f}""")
+                    ax.set_xlabel(f"""min: {stats['checkerboard seq']['min']:.1f} max: {stats['checkerboard seq']['max']:.1f} avg: {stats['checkerboard seq']['avg']:.1f} SD: {stats['checkerboard seq']['SD']:.1f} avg2: {stats['checkerboard seq']['avg2']:.1f}""")
                    
                     
                     current_file = save_file+measurement+"_sequential.csv"            
