@@ -9,10 +9,12 @@ Module to read and decode RIC images
 
 import sqlite3
 import numpy as np
+import os
 
 
 class RIC_DB():
     def __init__(self,  database_path):
+
         connectionObject    = sqlite3.connect(database_path)
         cursorObject        = connectionObject.cursor()
         self.cursorObject = cursorObject
@@ -102,10 +104,7 @@ class RIC_DB():
 
         """
 
-        query = f"""SELECT MeasurementID, MeasurementDesc
-                FROM 
-                Measurement
-                """
+        query = f"""SELECT MeasurementID, MeasurementDesc FROM Measurement"""
         
         self.cursorObject.execute(query)
         return self.cursorObject.fetchall()
