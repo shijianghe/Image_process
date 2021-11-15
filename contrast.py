@@ -21,17 +21,42 @@ from intersect import intersection
 
 import os
 
+import seaborn as sns
+
 
 channels = ['R', 'G', 'B', 'W']
 modes = ['+chkbrd', '-chkbrd', 'white', 'black']
 suffixex = ["50mA"]
+
+edges = [[-18,13.5],
+         [0,13.5],
+         [18, 13.5],
+         [-18,0],
+         [0,0],
+         [18,0],
+         [-18,-13.5],
+         [0,-13.5],
+         [18,-13.5]
+    ]
+
+ANSI = [[-13.33,10],
+         [0,10],
+         [13.33, 10],
+         [-13.33,0],
+         [0,0],
+         [13.33,0],
+         [-13.33,-10],
+         [0,-10],
+         [13.33,-10]
+    ]
+
 
 def do(database_path, Rows=6, Cols=9, Bin = 8):
     
     fig_height = 10
     
     fig_cols = ['+Check Raw', '-Check Raw', 'Check Local', 'Check Seq', 
-                'White Uniformity', 'Black Uniformity', 'W/B Seq']#, 'White Raw Local',
+                'White Uniformity', 'Black Uniformity', 'W/B Seq', 'ANSI Raw', 'ANSI uniformity']#, 'White Raw Local',
 #                'White Local','Black Raw Local', 'Black Local']
 
     fig_rows = ['R','G','B','W']
@@ -201,6 +226,10 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     white_img = image[y_min:y_max,x_min:x_max]
                     
+
+                    
+                    
+                    
                     coord_y = np.where (white_img[:, white_img.shape[1]//2]>image.mean())
                     y_min_rect = np.min(coord_y[0])+1
                     y_max_rect = np.max(coord_y[0])-1
@@ -209,6 +238,8 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     x_min_rect = np.min(coord_x[0])+1
                     x_max_rect = np.max(coord_x[0])-1
                     
+                    ansi_uniformity, ansi_roi_array, edges_roi_array = \
+                    calculate_ansi(white_img, [x_min_rect,x_max_rect,y_min_rect, y_max_rect])
                     
                     white_center = white_img[y_min_rect:y_max_rect,x_min_rect:x_max_rect]
                     white_av = white_center.mean()
@@ -237,9 +268,40 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     plt.colorbar(contour, ax=ax)   
                     
                     current_file = save_file+measurement+"_unoiformity.csv"
-                    np.savetxt(current_file, white_uniformity_area, delimiter=',')                    
-
+                    np.savetxt(current_file, white_uniformity_area, delimiter=',')  
                     
+                    
+                                    
+                    stats['ANSI uniformity'] = {'min' : np.nanmin(ansi_uniformity),
+                             'max' : np.nanmax(ansi_uniformity),
+                             'avg' : np.nanmean(ansi_uniformity),
+                             'SD' : np.nanstd(ansi_uniformity),
+                             }
+                
+                    
+                    ax = axs[i,7]
+                    contour = ax.imshow(white_img)
+                    plt.colorbar(contour, ax = ax)
+                    for coord in ansi_roi_array:
+                        ax.plot([coord[i % 4][0] for i in range(5)], 
+                            [coord[i % 4][1] for i in range(5)], 
+                            color = 'r', linewidth=1)
+
+                    for coord in edges_roi_array:
+                        ax.plot([coord[i % 4][0] for i in range(5)], 
+                            [coord[i % 4][1] for i in range(5)], 
+                            color = 'b', linewidth=1)
+                        
+                        
+                    ax = axs[i,8]
+                    sns.heatmap(ansi_uniformity, annot = True, fmt = ".2f", 
+                                xticklabels=False, yticklabels=False, cmap='viridis', ax = ax)
+                
+                    ax.set_xlabel(f"""min: {stats['ANSI uniformity']['min']:.1f} max: {stats['ANSI uniformity']['max']:.1f} avg: {stats['ANSI uniformity']['avg']:.1f} SD {stats['ANSI uniformity']['SD']:.1f}""")
+
+                    current_file = save_file+measurement+"_ANSI_unoiformity.csv"
+                    np.savetxt(current_file, ansi_uniformity, delimiter=',')  
+                
                     
                     
                 elif 'black' in measurement:
@@ -354,6 +416,131 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     plt.show()
     print("Done!\n")
 
+def calculate_ansi(white_image, inner_coords):
+    
+    outer_coords = [0,2,4,10,12,14,20,22,24]
+    
+    corner_indices = [0,2,6,8]
+    
+    
+    angle = 3
+    FOV_H = 40
+    FOV_V = 30
+    FOV = [FOV_H, FOV_V]
+    coeff_H = angle/FOV_H
+    coeff_V = angle/FOV_V
+    
+    total_lenght_outer = [int(white_image.shape[1]), 
+                       int(white_image.shape[0])]
+    
+    half_size_outer = [int(total_lenght_outer[0]*coeff_H/2), 
+                       int(total_lenght_outer[1]*coeff_V/2)]
+    
+    total_lenght_inner = [inner_coords[1]-inner_coords[0],
+                          inner_coords[3]-inner_coords[2]]
+    
+
+    
+    half_size_inner = [int(total_lenght_inner[0]*coeff_H/2),
+                      int(total_lenght_inner[1]*coeff_V/2)]
+    
+    #half_size_inner = half_size_outer
+    
+    shift = [int((total_lenght_outer[i] - total_lenght_inner[i])/2) for i in (0,1)]
+    
+    ansi_roi_array = []
+    for i, coordinates in enumerate(ANSI):
+        if i in corner_indices:
+            current_roi =calculate_roi(coordinates, total_lenght_outer,half_size_inner, FOV, [0,0])
+        else:
+            current_roi =calculate_roi(coordinates, total_lenght_inner, half_size_outer, FOV, shift)
+        
+        ansi_roi_array.append(current_roi)
+        
+    edges_roi_array = []
+    for i, coordinates in enumerate(edges):
+        if i in corner_indices:
+            current_roi =calculate_roi(coordinates, total_lenght_outer, half_size_inner, FOV, [0,0], [3,7])
+        else:
+            current_roi =calculate_roi(coordinates, total_lenght_inner,half_size_outer, FOV, shift, [2,2])
+        
+        edges_roi_array.append(current_roi)        
+    
+    
+    ansi_avg_array = []
+    edges_avg_array = []
+    
+    for i in range(len(ANSI)):
+        current_avg = calculate_avg_in_roi(white_image, ansi_roi_array[i])
+        ansi_avg_array.append(current_avg)
+        
+    for i in range(len(edges)):
+       current_avg = calculate_avg_in_roi(white_image, edges_roi_array[i])
+       edges_avg_array.append(current_avg)   
+   
+    ansi_avg_matrix = np.reshape(ansi_avg_array, (3,3))
+    
+    resulted_array = np.empty(25)
+    resulted_array[:] = np.nan
+    
+    for i, index in enumerate(outer_coords):
+        resulted_array[index] = edges_avg_array[i]
+        
+    resulted_array = resulted_array.reshape((5,5))
+    resulted_array[1:4,1:4] = ansi_avg_matrix
+    resulted_array = resulted_array/resulted_array[2,2]
+        
+    
+    return resulted_array, ansi_roi_array, edges_roi_array
+
+def calculate_avg_in_roi(white_image, coord):
+    x_start = coord[0][0]
+    x_end = coord[3][0]
+    y_start = coord[0][1]
+    y_end = coord[1][1]
+    
+    image_slice = white_image[y_start:y_end, x_start: x_end]
+    return np.mean(image_slice)
+
+def calculate_roi(center_angle,total_length, half_size, FOV, shift, padding = False):
+    #corner arrangement:
+    #0____3
+    #|    |
+    #1____2
+    
+    center_pix = [int(total_length[0]/2 * (1 + 2 * center_angle[0]/FOV[0]) + shift[0]),
+                  int(total_length[1]/2 * (1 - 2 * center_angle[1]/FOV[1]) + shift[1])]
+    coord = [0, 0, 0, 0]
+    coord[0] = [int(center_pix[0] - half_size[0]), 
+                int(center_pix[1] - half_size[1])]
+                
+    coord[1] = [int(center_pix[0] - half_size[0]), 
+            int(center_pix[1] + half_size[1])]
+                
+    coord[2] = [int(center_pix[0] + half_size[0]), 
+        int(center_pix[1] + half_size[1])]
+                
+    coord[3] = [int(center_pix[0] + half_size[0]), 
+        int(center_pix[1] - half_size[1])]
+    
+    if padding and not center_angle == [0, 0]:
+        if center_angle[0] > 0:
+            for i in range(4):
+                coord[i][0] = coord[i][0] - padding[0]
+        elif center_angle[0]<0:
+            for i in range(4):
+                coord[i][0] = coord[i][0] + padding[0]
+        
+        if center_angle[1] < 0:
+            for i in range(4):
+                coord[i][1] = coord[i][1] - padding[1]
+        elif center_angle[1]>0:
+            for i in range(4):
+                coord[i][1] = coord[i][1] + padding[1]    
+                
+    return coord            
+                
+    
 def get_vertices(image, Rows, Cols):
     rows = Rows-1; ROWS=Rows+1
     cols = Cols-1; COLS=Cols+1
