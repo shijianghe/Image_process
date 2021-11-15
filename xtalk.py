@@ -11,25 +11,46 @@ import numpy as np
 from scipy import ndimage
 import itertools, math, os
 import matplotlib.pyplot as plt
+from scipy.ndimage.filters import gaussian_filter
+
+from RIC import RIC_DB
 
 
+def do(db_name, threshold):
 
-def xtalk(file_name):
+    threshold = float(threshold)
 
-    H_pix,  V_pix  = 32.5, 30.5
-    H_roi,  V_roi  = 3, 3
+    db = RIC_DB(db_name)
+    meas_list = db.get_meas_list()
+
+    for item in meas_list:
+        print(item)
+
+    for ID, serial_no in db.get_meas_list():
+        print(f'db={db_name} threshold={threshold} ID={ID}')
+
+        image = db.read_luminance(ID)
+
+        xtalk(image, serial_no, threshold)
+
+    plt.show()
+
+
+def xtalk(image, serial_no, threshold):
+
+
+    H_pix,  V_pix  = 9, 9
+    H_roi,  V_roi  = 10, 10
     H_win,  V_win  = H_roi*2+1, V_roi*2+1   # half
     # file_name = r'C:\temp\uLED_Xtalk\cross_talk.png'
-    image= Image.open(file_name)
 
-    serial_no = os.path.splitext( os.path.split(file_name)[-1] )[0]
+    sigma = 20
+    img = gaussian_filter(image, sigma)
 
     H_pix = math.ceil(H_pix)
     V_pix = math.ceil(V_pix)
 
-    img = np.asarray(image.convert('L')).astype(np.float32)
     peak_ADC=img.max()
-    threshold=0.5
     img_bw=img>peak_ADC*threshold
 
     labeled_array, num_features = ndimage.label(img_bw)
@@ -79,6 +100,14 @@ def xtalk(file_name):
 
     xtalks=[]
 
+
+    fig = plt.figure()
+
+    ax1=fig.add_subplot(221)
+    contour = ax1.imshow(img)
+    plt.colorbar(contour, ax=ax1)
+
+
     for x, y, row, col in zip(X, Y, Rows, Cols):
         Res_x, Res_y = x-int(x), y-int(y)
         res_x, res_y = 1-Res_x, 1-Res_y
@@ -108,9 +137,14 @@ def xtalk(file_name):
                 if y_start<0 or y_end>Ny:
                     continue
             
-                rect = img[y_start: y_start+V_pix+2, x_start: x_start+H_pix+2]
+                rect = image[y_start: y_start+V_pix+2, x_start: x_start+H_pix+2]
                 val = (rect*cell).sum()
                 xtalk[j+V_roi, i+H_roi]=(rect*cell).sum()
+
+                # x1,x2 = x+i*H_pix-H_pix//2, x+i*H_pix+H_pix//2  
+                # y1,y2 = y+j*V_pix-V_pix//2, y+j*V_pix+V_pix//2
+                # ax1.plot([x1,x1,x2,x2,x1],[y1,y2,y2,y1,y1],'r-', linewidth=1)
+
             
         xtalk = xtalk/xtalk.max()*100  # percentage
 
@@ -123,11 +157,6 @@ def xtalk(file_name):
 
 
 
-    fig = plt.figure()
-
-    ax1=fig.add_subplot(221)
-    contour = ax1.imshow(img)
-    plt.colorbar(contour, ax=ax1)
 
 
     ax2=fig.add_subplot(222)
@@ -164,7 +193,6 @@ def xtalk(file_name):
     ax4.set_ylabel( 'Vertical cross talk (%)')
     ax4.legend( prop={'family':'monospace', 'size': 8}) 
 
-    plt.show()
 
 
 import sys
@@ -175,8 +203,9 @@ if __name__=='__main__':
     # for i, arg in enumerate(sys.argv):
     #     print(f"Argument {i:>6}: {arg}")
 
-    if len(sys.argv)==2:
-        xtalk(sys.argv[1])
+    argv = sys.argv
+    if len(argv)==3:
+        do(argv[1], argv[2])
     else:
         print('Please input the image file name')
     
