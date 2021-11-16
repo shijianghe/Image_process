@@ -299,7 +299,7 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 
                     ax.set_xlabel(f"""min: {stats['ANSI uniformity']['min']:.1f} max: {stats['ANSI uniformity']['max']:.1f} avg: {stats['ANSI uniformity']['avg']:.1f} SD {stats['ANSI uniformity']['SD']:.1f}""")
 
-                    current_file = save_file+measurement+"_ANSI_unoiformity.csv"
+                    current_file = save_file+measurement+"_ANSI_uniformity.csv"
                     np.savetxt(current_file, ansi_uniformity, delimiter=',')  
                 
                     
