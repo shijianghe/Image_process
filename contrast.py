@@ -51,6 +51,60 @@ ANSI = [[-13.33,10],
     ]
 
 
+
+def sigmoid_enhancement (image, stretching_factor = 100, min_max_scaling = True):
+    max_intensity = np.max(image)
+    min_intensity = np.min(image)
+    
+    image = (image - min_intensity) / (max_intensity - min_intensity)
+    image = image - 0.5
+    image = image*stretching_factor
+    
+    converted_image = 1/(1 + np.exp(-image))
+    
+    if not min_max_scaling:
+        converted_image = converted_image * (max_intensity - min_intensity)
+        converted_image = converted_image + min_intensity
+        
+    return converted_image
+
+
+
+
+def enhance_image(image, bin_h = 8, bin_v = 5, enhancement_function = sigmoid_enhancement,
+                  window_overlap = 0.1):
+    
+    h = image.shape[0]
+    v = image.shape[1]
+    
+    image_enhanced = np.zeros_like(image)
+    
+    h_start = 0
+    h_end = 0
+    
+    v_start = 0
+    v_end = 0
+    
+    while h_end<h:
+        h_end = min(h_start + h//bin_h, h)
+        v_start = 0
+        v_end = 0
+        
+        while v_end<v:
+            v_end = min(v_start + v//bin_v, v)
+            image_slice = image[h_start:h_end, v_start:v_end]
+            
+            
+        
+            image_slice = enhancement_function(image_slice)
+               
+            image_enhanced[h_start:h_end, v_start:v_end] = image_slice
+            v_start = int(v_end - (v_end - v_start) * window_overlap)
+            
+        h_start = int(h_end - (h_end - h_start) * window_overlap)
+        
+    return image_enhanced
+
 def do(database_path, Rows=6, Cols=9, Bin = 8):
     
     fig_height = 10
@@ -116,7 +170,8 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 if '+chkbrd' in measurement:
                     
                     try:
-                        px, py = get_vertices(image, Rows, Cols)
+                        image_enhanced = enhance_image(image)
+                        px, py = get_vertices(image_enhanced, Rows, Cols)
                         PD_for_sequential[0] = get_means(image, px, py, Rows, Cols) 
                         contrast_array_plus = get_local(image, Rows, Cols,  px, py, axs[i, 0])
                     except:
@@ -129,7 +184,8 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 elif '-chkbrd' in measurement:
                     
                     try:
-                        px, py = get_vertices(image, Rows, Cols)
+                        image_enhanced = enhance_image(image)
+                        px, py = get_vertices(image_enhanced, Rows, Cols)
                         PD_for_sequential[1] = get_means(image, px, py, Rows, Cols) 
                         contrast_array_minus = get_local(image, Rows, Cols,  px, py, axs[i, 1])
                     except:
