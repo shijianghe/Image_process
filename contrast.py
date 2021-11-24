@@ -151,6 +151,9 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
     
     for k, suffix in enumerate(suffixex):
         for i, channel in enumerate(channels):
+            contrast_array_plus = np.ones((Rows,Cols))
+            contrast_array_minus = np.ones((Rows,Cols))
+            PD_for_sequential = [np.ones(Rows*Cols),np.ones(Rows*Cols)]
             for j, mode in enumerate(modes):
                 
                 
@@ -170,13 +173,21 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 if '+chkbrd' in measurement:
                     
                     try:
-                        image_enhanced = enhance_image(image)
-                        px, py = get_vertices(image_enhanced, Rows, Cols)
+                        px, py = get_vertices(image, Rows, Cols)
                         PD_for_sequential[0] = get_means(image, px, py, Rows, Cols) 
                         contrast_array_plus = get_local(image, Rows, Cols,  px, py, axs[i, 0])
                     except:
                         print(f"Error processing {measurement}!\n")
-                        continue
+                        print(f"Trying with enhanced image")
+                        try:
+                            image_enhanced = enhance_image(image)
+                            px, py = get_vertices(image_enhanced, Rows, Cols)
+                            PD_for_sequential[0] = get_means(image, px, py, Rows, Cols) 
+                            contrast_array_plus = get_local(image, Rows, Cols,  px, py, axs[i, 0])
+                        except:
+                            print(f"Error processing {measurement}!\n")
+                            continue                        
+                        
 
                     
                     
@@ -184,15 +195,23 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                 elif '-chkbrd' in measurement:
                     
                     try:
-                        image_enhanced = enhance_image(image)
-                        px, py = get_vertices(image_enhanced, Rows, Cols)
+                        px, py = get_vertices(image, Rows, Cols)
                         PD_for_sequential[1] = get_means(image, px, py, Rows, Cols) 
                         contrast_array_minus = get_local(image, Rows, Cols,  px, py, axs[i, 1])
                     except:
                         print(f"Error processing {measurement}!\n")
-                        continue
+                        print(f"Trying with enhanced image")
+                        try:
+                            image_enhanced = enhance_image(image)
+                            px, py = get_vertices(image_enhanced, Rows, Cols)
+                            PD_for_sequential[1] = get_means(image, px, py, Rows, Cols) 
+                            contrast_array_minus = get_local(image, Rows, Cols,  px, py, axs[i, 1])
+                        except:
+                            print(f"Error processing {measurement}!\n")
+                            continue
+                        
                     
-
+                    
                     contrast_combined = np.nan_to_num(contrast_array_plus, False) + \
                     np.nan_to_num(contrast_array_minus, False) 
                     
@@ -216,7 +235,7 @@ def do(database_path, Rows=6, Cols=9, Bin = 8):
                     
                     seq_check_contrast = PD_for_sequential[1]/PD_for_sequential[0]
                     
-                    PD_whites = PD_whites = np.concatenate(\
+                    PD_whites = np.concatenate(\
                         (PD_for_sequential[0][::2], PD_for_sequential[1][1::2]))
                     
                     PD_blacks = np.concatenate(\
@@ -1014,17 +1033,21 @@ if __name__=='__main__':
     elif len(sys.argv)==2:
         path = sys.argv[1]
         
-        if path[-1] != '/':
-            path = path+'/'
+        if os.path.isfile(path):
+            do(path)
+        else:
+        
+            if path[-1] != '/':
+                path = path+'/'
+                
             
-        
-        files = os.listdir(path)
-        
-        for file in files:
-            if file.endswith("pmxm"):
-                do(path + file)
-        
-        print("All files processed!")
+            files = os.listdir(path)
+            
+            for file in files:
+                if file.endswith("pmxm"):
+                    do(path + file)
+            
+            print("All files processed!")
 
     else:
         print('Please input the image file name')
