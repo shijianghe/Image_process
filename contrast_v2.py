@@ -86,14 +86,14 @@ def process_data(database_path):
     print(measurements_in_db)
     
     data = process_all_measurements(db)
-    save_data(data, save_dir)
+    save_data(data, save_dir, DMA_name)
     plot_data(data, save_dir,  DMA_name)
     print ("All measurements are processed!")
     
 
-def save_data(data, save_dir):
+def save_data(data, save_dir, DMA_name):
     print("Saving data")
-    file = save_dir + "results.xlsx"
+    file = save_dir + f"results_{DMA_name}.xlsx"
     writer = pd.ExcelWriter(file,  engine='xlsxwriter')
     for suffix in suffixex:
         for channel in channels:
@@ -251,6 +251,10 @@ def write_data_to_excel(writer, data, base, data_type, data_ID,sheet_suffix):
     df = pd.DataFrame(data[base+data_type][data_ID])
     df.to_excel(writer, sheet_name = base+sheet_suffix,
                 na_rep = 'NaN', index = False, header=False)
+    worksheet = writer.sheets[base+sheet_suffix]
+    worksheet.conditional_format(0, 0, 100, 100,
+                             {'type': '3_color_scale'
+                             })
     
 def process_all_measurements(db):  
     data = {}
