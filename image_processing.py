@@ -53,6 +53,8 @@ def calculate_sequential_checkerboard_contrast(intensities_plus, intensities_min
     seq_check_contrast = intensities_plus/intensities_minus
     seq_check_contrast[seq_check_contrast<1] = 1/seq_check_contrast[seq_check_contrast<1]
     
+    
+    
     return seq_check_contrast
 
 def calculate_sequential_WB_contrast(white, black):
@@ -74,12 +76,12 @@ def calculate_ansi(image, ansi_array, edge_array, angle_roi = (3,3), full_FOV = 
     
     ansi_roi_array = []
     for coordinates in ansi_array:
-        current_roi = image_tools.get_roi_from_angles(image, coordinates, angle_roi, full_FOV)
+        current_roi = image_tools.get_roi_from_angles(image, coordinates, angle_roi, full_FOV, padding=(1,1))
         ansi_roi_array.append(current_roi)
     
     edge_roi_array = []
     for coordinates in edge_array:
-        current_roi = image_tools.get_roi_from_angles(image, coordinates, angle_roi, full_FOV)
+        current_roi = image_tools.get_roi_from_angles(image, coordinates, angle_roi, full_FOV, padding=(1,1))
         edge_roi_array.append(current_roi)
         
     ansi_avg_array = []

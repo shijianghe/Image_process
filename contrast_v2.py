@@ -23,7 +23,7 @@ import sys
 save_full_wb = False
 
 k_x = 0.03
-k_y = 0.07
+k_y = 0.06
 
 bin_size = 8
 
@@ -35,6 +35,8 @@ center_FOV = (10,10)
 
 cols = 9
 rows = 6
+
+padding_wb = 5 #in percent
 
 channels = ['R', 'G', 'B', 'W']
 modes = ['+chkbrd', '-chkbrd', 'white', 'black']
@@ -141,9 +143,10 @@ def plot_data(data,save_dir, DMA_name):
             ax = axs[row,3]
             image = data[base+'check']['seq_contrast']
             stats = data[base+'check']['seq_contrast_stats']
+            avg2 = data[base+'check']['avg2']
             contour=ax.imshow(image)
             plt.colorbar(contour, ax=ax)
-            ax.set_xlabel(f"""min: {stats[0]:.1f} max: {stats[1]:.1f} avg: {stats[2]:.1f} SD {stats[3]:.1f}""")
+            ax.set_xlabel(f"""min: {stats[0]:.1f} max: {stats[1]:.1f} avg: {stats[2]:.1f} SD {stats[3]:.1f} avg2 {avg2:.1f}""")
 
             ax = axs[row,4]
             image = data[base+'wb']['white_uniformity']
@@ -237,6 +240,10 @@ def write_stats_to_excel(writer,data, base):
     
     df_stats.columns = ['min','max','avg','SD']
     
+    df_stats['avg2'] = ""
+    
+    df_stats.at['check_seq', 'avg2'] = data[base+'check']['avg2']
+    
     df_stats.to_excel(writer, sheet_name = base+"stats",
                 na_rep = 'NaN')
 
@@ -287,6 +294,18 @@ def process_white_black(db, suffix, channel, angle, corners, corners_2):
     
     white = image_processing.pre_process_image(white, angle, corners, corners_2, k_x, k_y, bin_size)
     black = image_processing.pre_process_image(black, angle, corners, corners_2, k_x, k_y, bin_size)
+    
+    white -= np.min(white)
+    black -= np.min(black)
+    
+    white[white == 0] = np.min(white[white!=0])
+    black[black == 0] = np.min(black[black!=0])
+    
+    padding_V = int(white.shape[0]*padding_wb/200)
+    padding_H = int(white.shape[1]*padding_wb/200)
+    
+    white = white[padding_V:white.shape[0] - padding_V, padding_H:white.shape[1] - padding_H]
+    black = black[padding_V:black.shape[0] - padding_V, padding_H:black.shape[1] - padding_H]
     
     white_center_roi = image_tools.get_roi_from_angles(white, (0,0), angle_roi=center_FOV)
     white_center = image_tools.crop_image(white, white_center_roi)
@@ -350,13 +369,25 @@ def process_checkers(db, suffix, channel, angle, corners, corners_2):
     
     contrast_seq = image_processing.calculate_sequential_checkerboard_contrast(intensities,intensities2)
     
+    pattern_plus = image_tools.generate_pattern(rows, cols, "+")
+    pattern_minus = image_tools.generate_pattern(rows, cols, '-')
+    
+    whites_mean = np.hstack((intensities[pattern_minus], 
+                             intensities2[pattern_plus])).mean()
+    
+    blacks_mean = np.hstack((intensities[pattern_plus], 
+                             intensities2[pattern_minus])).mean()  
+    
+    avg2 = whites_mean/blacks_mean
+    
     result = {"+Check Raw" : check_plus,
               "-Check Raw" : check_minus,
               "local_contrast": contrast_combined,
               "local_contrast_stats": image_processing.calculate_statistics(contrast_combined),
               "seq_contrast": contrast_seq,
               "seq_contrast_stats": image_processing.calculate_statistics(contrast_seq),
-              "rois": squares
+              "rois": squares,
+              "avg2":avg2
         }
     
     return result
