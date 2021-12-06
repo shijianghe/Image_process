@@ -102,9 +102,11 @@ def save_data(data, save_dir, DMA_name):
             write_data_to_excel(writer, data, base, 'check', 'seq_contrast', 'check_sequential')
             write_data_to_excel(writer, data, base, 'wb', 'ansi_uniformity', 'ansi_uniformity') 
             if save_full_wb:
-                write_data_to_excel(writer, data, base, 'wb', 'seq_contrast', 'wb_sequential')
-                write_data_to_excel(writer, data, base, 'wb', 'white_uniformity', 'white_uniformity')
-                write_data_to_excel(writer, data, base, 'wb', 'black_uniformity', 'black_uniformity')
+                writer2 = pd.ExcelWriter(save_dir + f"results_extended_{DMA_name}.xlsx",  engine='xlsxwriter')
+                write_data_to_excel(writer2, data, base, 'wb', 'seq_contrast', 'wb_sequential')
+                write_data_to_excel(writer2, data, base, 'wb', 'white_uniformity', 'white_uniformity')
+                write_data_to_excel(writer2, data, base, 'wb', 'black_uniformity', 'black_uniformity')
+                writer2.close()
                 
             write_stats_to_excel(writer, data, base)
 
@@ -247,12 +249,16 @@ def write_stats_to_excel(writer,data, base):
     df_stats.to_excel(writer, sheet_name = base+"stats",
                 na_rep = 'NaN')
 
+def write_data_to_csv(file, data, base, data_type, data_ID):
+    df = pd.DataFrame(data[base+data_type][data_ID])
+    df.to_csv(file)
+
 def write_data_to_excel(writer, data, base, data_type, data_ID,sheet_suffix):
     df = pd.DataFrame(data[base+data_type][data_ID])
     df.to_excel(writer, sheet_name = base+sheet_suffix,
                 na_rep = 'NaN', index = False, header=False)
     worksheet = writer.sheets[base+sheet_suffix]
-    worksheet.conditional_format(0, 0, 100, 100,
+    worksheet.conditional_format(0, 0, 2500, 2500,
                              {'type': '3_color_scale'
                              })
     
@@ -398,8 +404,23 @@ def process_checkers(db, suffix, channel, angle, corners, corners_2):
 
     
 if __name__ == "__main__":
-
-    if len(sys.argv)==2:
+    
+    args = sys.argv
+    if "save_all" in args:
+        save_full_wb = True
+        args.remove("save_all")
+        
+    bin_size_string = next((s for s in args if "bin=" in s), None)
+    
+    if bin_size:
+        try:
+            bin_size = int(bin_size_string[4:])
+        except:
+            print("Cannot parse bin size")
+        args.remove(bin_size_string)
+            
+    
+    if len(args)==2:
         path = sys.argv[1]
         
         if os.path.isfile(path):
