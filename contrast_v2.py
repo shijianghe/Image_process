@@ -421,7 +421,7 @@ if __name__ == "__main__":
             
     
     if len(args)==2:
-        path = sys.argv[1]
+        path = args[1]
         
         if os.path.isfile(path):
             process_data(path)
