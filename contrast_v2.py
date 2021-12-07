@@ -412,12 +412,21 @@ if __name__ == "__main__":
         
     bin_size_string = next((s for s in args if "bin=" in s), None)
     
-    if bin_size:
+    if bin_size_string:
         try:
             bin_size = int(bin_size_string[4:])
         except:
             print("Cannot parse bin size")
         args.remove(bin_size_string)
+    
+    check_roi = next((s for s in args if "check_roi=" in s), None)
+    
+    if check_roi:
+        try:
+            area = float(check_roi[10:])
+        except:
+            print("Cannot parse checkerboard roi size")
+        args.remove(check_roi)
             
     
     if len(args)==2:
