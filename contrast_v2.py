@@ -29,7 +29,7 @@ bin_size = 8
 
 dpi = 300
 
-area = 0.6
+area = 0.25
 
 center_FOV = (10,10)
 
