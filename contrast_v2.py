@@ -95,7 +95,9 @@ def save_data(data, save_dir, DMA_name):
     print("Saving data")
     file = save_dir + f"results_{DMA_name}.xlsx"
     writer = pd.ExcelWriter(file,  engine='xlsxwriter')
+
     for suffix in suffixex:
+        write_stats_to_excel(writer, data, suffix)
         for channel in channels:
             base = channel + '_' + suffix + '_'
             write_data_to_excel(writer, data, base, 'check', 'local_contrast', 'check_local')
@@ -108,7 +110,7 @@ def save_data(data, save_dir, DMA_name):
                 write_data_to_excel(writer2, data, base, 'wb', 'black_uniformity', 'black_uniformity')
                 writer2.close()
                 
-            write_stats_to_excel(writer, data, base)
+
 
     
     writer.close()
@@ -221,33 +223,65 @@ def prepare_figure(DMA_name):
     return fig,axs
 
     
-def write_stats_to_excel(writer,data, base):
-    df_stats = pd.DataFrame(data[base+'check']['local_contrast_stats'],columns = ['check_local']).T
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'check']['seq_contrast_stats'],columns = ['check_seq']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['white_uniformity_stats'],columns = ['white_uniformity']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['white_uniformity_luminance_stats'],columns = ['white_uniformity_luminance']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['black_uniformity_stats'],columns = ['black_uniformity']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['black_uniformity_luminance_stats'],columns = ['black_uniformity_luminance']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['seq_contrast_stats'],columns = ['seq_contrast']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['ansi_uniformity_stats'],columns = ['ansi_uniformity']).T)
-    df_stats = df_stats.append(
-        pd.DataFrame(data[base+'wb']['white_center_luminance_stats'],columns = ['white_lumimance_center']).T)
+def write_stats_to_excel(writer,data, suffix):
+    columns = []
+    df_excists = False
+    for channel in channels:
+        base = channel + '_' + suffix + '_'
+        
+        columns = get_columns(columns,channel, 'check_local')
+        
+        if not df_excists:
+            df_stats = pd.DataFrame(data[base+'check']['local_contrast_stats'], index = columns).T
+            df_excists = True
+        else:
+            df_stats = df_stats.join(
+               pd.DataFrame(data[base+'check']['local_contrast_stats'], index = columns).T)
+        
+        columns = get_columns(columns,channel, 'check_seq')
+        df_stats = df_stats.join(
+            pd.DataFrame(data[base+'check']['seq_contrast_stats'], index = columns).T)
+        df_stats = df_stats.join(
+            pd.DataFrame([data[base+'check']['avg2']], index = [f"{channel}.check_seq.avg2"]).T)
+        
+        #columns = get_columns(columns,channel, 'white_uniformity')
+        #df_stats = df_stats.append(
+        #    pd.DataFrame(data[base+'wb']['white_uniformity_stats'],index = columns).T)
+        
+        columns = get_columns(columns,channel, 'white_uniformity_nits')
+        df_stats = df_stats.join(
+            pd.DataFrame(data[base+'wb']['white_uniformity_luminance_stats'],index = columns).T)
+        
+        #columns = get_columns(columns,channel, 'black_uniformity')
+        #df_stats = df_stats.append(
+        #    pd.DataFrame(data[base+'wb']['black_uniformity_stats'],columns = ['black_uniformity']).T)
+        
+        columns = get_columns(columns,channel, 'black_uniformity_nits')
+        df_stats = df_stats.join(
+            pd.DataFrame(data[base+'wb']['black_uniformity_luminance_stats'],index = columns).T)
+        
+        columns = get_columns(columns,channel, 'seq_contrast')
+        df_stats = df_stats.join(
+            pd.DataFrame(data[base+'wb']['seq_contrast_stats'],index = columns).T)
+        
+        columns = get_columns(columns,channel, 'ansi_uniformity')
+        df_stats = df_stats.join(
+            pd.DataFrame(data[base+'wb']['ansi_uniformity_stats'],index = columns).T)
+        
+        columns = get_columns(columns,channel, 'center_luminance')
+        df_stats = df_stats.join(
+            pd.DataFrame(data[base+'wb']['white_center_luminance_stats'],index = columns).T)
     
-    df_stats.columns = ['min','max','avg','SD']
     
-    df_stats['avg2'] = ""
-    
-    df_stats.at['check_seq', 'avg2'] = data[base+'check']['avg2']
-    
-    df_stats.to_excel(writer, sheet_name = base+"stats",
-                na_rep = 'NaN')
+    df_stats.to_excel(writer, sheet_name = "stats",
+                na_rep = 'NaN', index = False)
+
+def get_columns(columns, channel, mode):
+    columns = []
+    stats = ['min','max','avg','SD']
+    for stat in stats:
+        columns.append(f"{channel}.{mode}.{stat}")
+    return columns
 
 def write_data_to_csv(file, data, base, data_type, data_ID):
     df = pd.DataFrame(data[base+data_type][data_ID])
