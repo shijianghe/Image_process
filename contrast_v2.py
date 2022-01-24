@@ -513,12 +513,18 @@ if __name__ == "__main__":
         except:
             print("Cannot parse checkerboard roi size")
         args.remove(check_roi)
-        
-    path = args[1]
-    if os.path.exists(path):
-        args.remove(path)
+    
+    if len(args) > 1:
+        path = args[1]
+        if os.path.exists(path):
+            args.remove(path)
+        else:
+            path = default_path
     else:
         path = default_path
+        
+
+        
         if not os.path.exists(path):
             raise FileNotFoundError('Please input valid file name or path or check default path')
         
