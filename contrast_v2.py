@@ -3,7 +3,35 @@
 Created on Wed Nov 10 16:47:07 2021
 
 @author: v-olegkozlov
+
+Run via command line python contrast_v2.py [path] [args]
+
+e.g. python contrast_v2.py L002.pmxm C:/RIC L001.pmxm -R001.pmxm bin=16 check_roi = 0.3 save_all plot
+(replace double slash with a single slash in the file path)
+
+path (optional): path to folder with data, if not present default path is used
+
+args (any order):
+    
+    DMA.pmxm : DMA to process (any number of files, if absent all files in 
+                               the folder will be processed)
+    
+    -DMA.pmxm : DMA to exclude (any number of files, if absent all files in 
+                               the folder will be processed)
+    
+    bin=X : (e.g. bin=16) defines bin size. Default is 8. Bin size of less than 
+                                    4 is not recommended (too heavy to process)
+                                
+    check_roi=X : (e.g. check_roi=0.5) area withing checker to process. Default
+                                            is 0.25. Cannot be larger than 1
+                                            
+    save_all or s: if present, saves extended data (full image matrices). 
+                            Significantly increases file size and processing time
+                            Not recommended
 """
+
+
+
 
 from RIC import RIC_DB
 import image_tools
@@ -19,8 +47,11 @@ import seaborn as sns
 
 import sys
 
+default_path = r"C:/Users/TestUser/Documents/RIC_Contrast_Uniformity/"
 
+RIC_extensiton = ".pmxm"
 save_full_wb = False
+
 
 k_x = 0.03
 k_y = 0.06
@@ -95,6 +126,9 @@ def save_data(data, save_dir, DMA_name):
     print("Saving data")
     file = save_dir + f"results_{DMA_name}.xlsx"
     writer = pd.ExcelWriter(file,  engine='xlsxwriter')
+    writer2 = None
+    if save_full_wb:
+        writer2 = pd.ExcelWriter(save_dir + f"results_extended_{DMA_name}.xlsx",  engine='xlsxwriter')
 
     for suffix in suffixex:
         write_stats_to_excel(writer, data, suffix)
@@ -104,15 +138,18 @@ def save_data(data, save_dir, DMA_name):
             write_data_to_excel(writer, data, base, 'check', 'seq_contrast', 'check_sequential')
             write_data_to_excel(writer, data, base, 'wb', 'ansi_uniformity', 'ansi_uniformity') 
             if save_full_wb:
-                writer2 = pd.ExcelWriter(save_dir + f"results_extended_{DMA_name}.xlsx",  engine='xlsxwriter')
                 write_data_to_excel(writer2, data, base, 'wb', 'seq_contrast', 'wb_sequential')
                 write_data_to_excel(writer2, data, base, 'wb', 'white_uniformity', 'white_uniformity')
                 write_data_to_excel(writer2, data, base, 'wb', 'black_uniformity', 'black_uniformity')
-                writer2.close()
+                write_data_to_excel(writer2, data, base, 'wb', 'white', 'white')
+                write_data_to_excel(writer2, data, base, 'wb', 'black', 'black')
+               
                 
 
 
-    
+    if writer2:
+         writer2.close()
+         
     writer.close()
     print("Data saved!")
 
@@ -190,6 +227,7 @@ def plot_data(data,save_dir, DMA_name):
     
     plt.tight_layout()
     plt.savefig(save_dir+f'plot_{DMA_name}.png', dpi=dpi, bbox_inches='tight')
+    
     plt.show()
         
 
@@ -363,6 +401,8 @@ def process_white_black(db, suffix, channel, angle, corners, corners_2):
     
     result = {"white_uniformity" : white_uniformity,
               "black_uniformity" : black_uniformity,
+              "white" : white,
+              "black" : black,
               "seq_contrast": wb_seq,
               "ansi_uniformity":ansi_uniformity,
               "white_uniformity_stats" : image_processing.calculate_statistics(white_uniformity),
@@ -439,10 +479,19 @@ def process_checkers(db, suffix, channel, angle, corners, corners_2):
     
 if __name__ == "__main__":
     
+    files_to_process = []
+    files_to_exclude = []
+    
     args = sys.argv
     if "save_all" in args:
         save_full_wb = True
         args.remove("save_all")
+
+    if "s" in args:
+        save_full_wb = True
+        args.remove("s")
+    
+
         
     bin_size_string = next((s for s in args if "bin=" in s), None)
     
@@ -457,33 +506,65 @@ if __name__ == "__main__":
     
     if check_roi:
         try:
-            area = float(check_roi[10:])
+            new_area = float(check_roi[10:])
+            if new_area>=1:
+                new_area = 1
+            area = new_area
         except:
             print("Cannot parse checkerboard roi size")
         args.remove(check_roi)
-            
-    
-    if len(args)==2:
-        path = args[1]
         
-        if os.path.isfile(path):
-            process_data(path)
-        else:
-        
-            if path[-1] != '/':
-                path = path+'/'
-                            
-            files = os.listdir(path)
-            
-            for file in files:
-                if file.endswith("pmxm"):
-                    print(f"Processing {file}")
-                    try:
-                        process_data(path + file)
-                    except:
-                        print(f"{file} is not processed!")
-            
-            print("All files processed!")        
-
+    path = args[1]
+    if os.path.exists(path):
+        args.remove(path)
     else:
-        print('Please input the image file name or path')
+        path = default_path
+        if not os.path.exists(path):
+            raise FileNotFoundError('Please input valid file name or path or check default path')
+        
+    
+    if len(args) > 1:
+        remaining_args = args[1:].copy()
+        for arg in remaining_args:
+            if arg.endswith(RIC_extensiton):
+                if arg[0] == '-':
+                    files_to_exclude.append(arg[1:])
+                else:
+                    files_to_process.append(arg)
+            else:
+                print(f"argument {arg} is not recognized!")
+            args.remove(arg)
+                
+    
+
+        
+    if path.endswith(RIC_extensiton):
+        path, filename = os.path.split(path)
+        files_to_process.append(filename)
+        
+    if not os.path.exists(path):
+        raise FileNotFoundError('Please input valid file name or path or check default path')
+        
+    if path[-1] != '/':
+        path = path+'/'
+        
+    if not files_to_process:
+        files_to_process = os.listdir(path)
+    
+    if files_to_exclude:
+        for file in files_to_exclude:
+            try:
+                files_to_process.remove(file)
+            except:
+                pass
+    
+    for file in files_to_process:
+        if file.endswith("pmxm"):
+            print(f"Processing {file}")
+            try:
+                process_data(path + file)
+            except:
+                print(f"{file} is not processed!")
+        
+    print("All files processed!")        
+
