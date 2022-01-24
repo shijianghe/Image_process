@@ -525,9 +525,9 @@ if __name__ == "__main__":
         
 
         
-        if not os.path.exists(path):
-            raise FileNotFoundError('Please input valid file name or path or check default path')
-        
+    if not os.path.exists(path):
+        raise FileNotFoundError('Please input valid file name or path or check default path')
+    
     
     if len(args) > 1:
         remaining_args = args[1:].copy()
