@@ -192,16 +192,18 @@ def plot_data(data,save_dir, DMA_name):
             ax = axs[row,4]
             image = data[base+'wb']['white_uniformity']
             stats = data[base+'wb']['white_uniformity_stats']
+            stats2 = data[base+'wb']['white_uniformity_luminance_stats']
             contour=ax.imshow(image)
             plt.colorbar(contour, ax=ax)
-            ax.set_xlabel(f"""min: {stats[0]:.1f} max: {stats[1]:.1f} avg: {stats[2]:.1f} SD {stats[3]:.1f}""")
+            ax.set_xlabel(f"""(%) min: {stats[0]:.1f} max: {stats[1]:.1f} avg: {stats[2]:.1f} SD {stats[3]:.1f}\n(L) min: {stats2[0]/1000:.1f}K max: {stats2[1]/1000:.1f}K avg: {stats2[2]/1000:.1f}K SD {stats2[3]/1000:.1f}K""")
 
             ax = axs[row,5]
             image = data[base+'wb']['black_uniformity']
             stats = data[base+'wb']['black_uniformity_stats']
+            stats2 = data[base+'wb']['black_uniformity_luminance_stats']
             contour=ax.imshow(image)
             plt.colorbar(contour, ax=ax)
-            ax.set_xlabel(f"""min: {stats[0]:.1f} max: {stats[1]:.1f} avg: {stats[2]:.1f} SD {stats[3]:.1f}""")
+            ax.set_xlabel(f"""(%) min: {stats[0]:.1f} max: {stats[1]:.1f} avg: {stats[2]:.1f} SD {stats[3]:.1f}\n(L) min: {stats2[0]:.1f} max: {stats2[1]:.1f} avg: {stats2[2]:.1f} SD {stats2[3]:.1f}""")
 
             ax = axs[row,6]
             image = data[base+'wb']['seq_contrast']
@@ -523,8 +525,6 @@ if __name__ == "__main__":
     else:
         path = default_path
         
-
-        
     if not os.path.exists(path):
         raise FileNotFoundError('Please input valid file name or path or check default path')
     
@@ -547,10 +547,7 @@ if __name__ == "__main__":
     if path.endswith(RIC_extensiton):
         path, filename = os.path.split(path)
         files_to_process.append(filename)
-        
-    if not os.path.exists(path):
-        raise FileNotFoundError('Please input valid file name or path or check default path')
-        
+                
     if path[-1] != '/':
         path = path+'/'
         
