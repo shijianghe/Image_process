@@ -20,6 +20,23 @@ def pre_process_image(image, angle, corners,corners_2, k_x, k_y, bin_size, paddi
                           padding[0]:cropped_2.shape[1]-padding[0]]
     return processed
 
+
+def pre_process_uLED_image(image, bin_size):
+    angle = image_tools.get_rotation_angle(image)
+    binned = image_tools.bin_image(image, bin_size)
+    binned_rotated = image_tools.rotate_image(binned, angle)
+    
+    corners = image_tools.get_corners(binned_rotated)
+    
+    binned_rotated_cropped = image_tools.crop_image(binned_rotated,corners)
+    
+    binned_rotated_cropped -= np.min(binned_rotated_cropped)
+    binned_rotated_cropped[binned_rotated_cropped == 0] = \
+        np.min(binned_rotated_cropped[binned_rotated_cropped!=0])
+        
+    return binned_rotated_cropped
+    
+
 def get_parameters_from_white(white_image, bin_size, k_x,k_y):
     angle = image_tools.get_rotation_angle(white_image)
     white_binned = image_tools.bin_image(white_image,bin_size)
