@@ -69,7 +69,7 @@ rows = 6
 
 padding_wb = 5 #in percent
 
-channels = ['R', 'G', 'B', 'W']
+channels = ['R', 'G', 'B']
 modes = ['+chkbrd', '-chkbrd', 'white', 'black']
 suffixex = ["50mA"]
 

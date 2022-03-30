@@ -11,7 +11,6 @@ import sqlite3
 import numpy as np
 import os
 
-
 class RIC_DB():
     def __init__(self,  database_path):
 
@@ -24,7 +23,7 @@ class RIC_DB():
 
 
 
-    def read_single_channel(self, MeasurementID, Channel = 1):
+    def read_single_channel(self, MeasurementID, Channel = 1, data_type = [np.float32, np.short]):
         """
         Channel should be 0, 1 or 2 (default is 1). 
             Color-coding is tristimulus X(0), Y(1), Z(2)
@@ -43,15 +42,27 @@ class RIC_DB():
         query = f"SELECT Width, Height, ImageData FROM ImageData WHERE MeasurementID={MeasurementID} AND DataType={Channel}"
 
         #query = f"SELECT Width, Height, ImageData FROM ImageData WHERE MeasurementID == {MeasurementID}"#" AND DataType = {Channel}"
-                             
+        
+        if not isinstance(data_type, list):
+            data_type = [data_type]
 
         cursorObject.execute(query)
         
         width, height, byte_image = cursorObject.fetchone()
         
-        image = np.frombuffer(byte_image, dtype=np.float32).reshape((width, height)).transpose()
+        byte_size = int(len(byte_image)/width/height)
         
-        return image
+        
+        for current_data_type in data_type:
+            if np.dtype(current_data_type).itemsize == byte_size:
+                image = np.frombuffer(byte_image, dtype=current_data_type).reshape((width, height)).transpose()
+                return image
+        
+        raise ValueError(f"Data type of size {byte_size} not found in {data_type}")
+        return None
+        
+        
+        
 
 
     def read_luminance(self, MeasurementID):
